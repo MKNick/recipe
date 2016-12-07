@@ -1,0 +1,127 @@
+/*
+ * safe_map.hpp
+ *
+ *  Created on: 2016年11月29日
+ *      Author: MKNick
+ */
+
+#ifndef SAFE_MAP_HPP_
+#define SAFE_MAP_HPP_
+
+#include <boost/unordered_map.hpp>
+#include <boost/thread.hpp>
+
+
+template <typename Key,typename Value>
+class safe_map : boost::noncopyable
+{
+	//define type
+public:
+	typedef boost::unordered_map<Key,Value> map_type;//use hash_map
+	typedef boost::shared_mutex  rw_mutex;           //shared mutex
+	typedef boost::shared_lock<rw_mutex>   read_lock;
+	typedef boost::unique_lock<rw_mutex>   write_lock;
+public:
+	typedef typename map_type::key_type key_type;
+	typedef typename map_type::value_type value_type;
+	typedef typename map_type::mapped_type mapped_type;
+	typedef typename map_type::pointer pointer;
+	typedef typename map_type::const_pointer const_pointer;
+	typedef typename map_type::reference reference;
+	typedef typename map_type::const_reference const_reference;
+	typedef typename map_type::size_type size_type;
+	typedef typename map_type::difference_type difference_type;
+	typedef typename map_type::iterator iterator;
+	typedef typename map_type::const_iterator const_iterator;
+
+public:
+	safe_map()
+	{
+
+	}
+	size_type size()const
+	{
+		read_lock lock(mutex_);
+		return map_.size();
+	}
+
+	bool empty()const
+	{
+		read_lock lock(mutex_);
+		return map_.empty();
+	}
+
+	iterator begin()
+	{
+		read_lock lock(mutex_);
+		return map_.begin();
+	}
+
+	iterator end()
+	{
+		read_lock lock(mutex_);
+		return map_.end();
+	}
+
+	const_iterator cbegin()
+	{
+		read_lock lock(mutex_);
+		return map_.cbegin();
+	}
+
+	const_iterator cend()
+	{
+		read_lock lock(mutex_);
+		return map_.cbegin();
+	}
+
+	bool insert(key_type key,mapped_type value)
+	{
+		write_lock lock(mutex_);
+		map_.insert(value_type(key,value)).second;
+	}
+	size_type erase(const key_type &key)
+	{
+		write_lock lock(mutex_);
+		return map_.erase(key);
+	}
+	iterator find(const key_type &key)
+	{
+		read_lock lock(mutex_);
+		return map_.find(key);
+	}
+	mapped_type& at(const key_type &key)
+	{
+		read_lock lock(mutex_);
+		return map_.at(key);
+	}
+	mapped_type&  operator[](const key_type &key)
+	{
+		read_lock lock(mutex_);
+		return map_[key];
+	}
+	void set(key_type& key,mapped_type& value)
+	{
+		write_lock lock(mutex_);
+		map_[key] = value;
+	}
+	void clear()
+	{
+		write_lock lock(mutex_);
+		map_.clear();
+	}
+
+	template <typename Func>
+	void for_each(Func func)
+	{
+		read_lock lock(mutex_);
+		std::for_each(map_.begin(),map_.end(),func);
+	}
+
+
+private:
+	map_type map_;
+	mutable rw_mutex mutex_;
+};
+
+#endif /* SAFE_MAP_HPP_ */
